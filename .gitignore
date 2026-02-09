@@ -1,0 +1,21 @@
+# R specific
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+
+# Shiny specific
+rsconnect/
+*.log
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# IDE specific
+.vscode/
+.idea/
+
+# Large data files (uncomment if needed)
+# data/*.csv
+# data/*.xlsx
