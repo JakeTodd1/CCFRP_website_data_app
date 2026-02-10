@@ -126,9 +126,20 @@ ui <- fluidPage(
       )
     ),
     column(3,
-      selectInput("species_select", "Select Species:",
-                  choices = c("All Species", all_species),
-                  selected = "All Species")
+      # Species filter for CPUE/BPUE tabs (includes "All Species")
+      conditionalPanel(
+        condition = "input.main_tabs !== 'Fish Length'",
+        selectInput("species_select", "Select Species:",
+                    choices = c("All Species", all_species),
+                    selected = "All Species")
+      ),
+      # Species filter for Length tab (NO "All Species" option)
+      conditionalPanel(
+        condition = "input.main_tabs === 'Fish Length'",
+        selectInput("species_select_length", "Select Species:",
+                    choices = all_species,
+                    selected = all_species[1])
+      )
     ),
     column(3,
       sliderInput("year_range", "Year Range:",
@@ -171,7 +182,7 @@ ui <- fluidPage(
     tabPanel("Fish Length",
       br(),
       h3("Fish Length Distribution Over Time"),
-      p("Average fish length (cm) over time, colored by MPA status."),
+      p("Average fish length (cm) over time, colored by MPA status. Select a species to view."),
       plotlyOutput("length_plot", height = "550px"),
       hr(),
       h4("Length Summary Table"),
@@ -228,14 +239,13 @@ server <- function(input, output, session) {
       )
   })
   
-  # ---- Reactive: filtered length data ----
+  # ---- Reactive: filtered length data (uses separate species selector) ----
   filtered_length <- reactive({
     data <- length_raw %>%
       filter(Year >= input$year_range[1], Year <= input$year_range[2])
     
-    if (input$species_select != "All Species") {
-      data <- data %>% filter(Common_Name == input$species_select)
-    }
+    # Length tab ALWAYS filters by a single species (no "All Species" option)
+    data <- data %>% filter(Common_Name == input$species_select_length)
     
     if (input$view_level == "area") {
       data <- data %>% filter(Area == input$area_select)
@@ -318,10 +328,12 @@ server <- function(input, output, session) {
   output$length_plot <- renderPlotly({
     data <- summarized_length()
     
+    species_name <- input$species_select_length;
+    
     title_text <- switch(input$view_level,
-      "area" = paste("Mean Fish Length at", input$area_select),
-      "region" = paste("Mean Fish Length in", input$region_select),
-      "all" = "Mean Fish Length Across All Areas"
+      "area" = paste(species_name, "- Mean Length at", input$area_select),
+      "region" = paste(species_name, "- Mean Length in", input$region_select),
+      "all" = paste(species_name, "- Mean Length Across All Areas")
     )
     
     p <- ggplot(data, aes(x = Year, y = mean_length, color = MPA_Status)) +
