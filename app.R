@@ -6,19 +6,22 @@ library(shinythemes)
 library(tidyr)
 
 # ---- Region Lookup Table ----
-# Maps each Area to its Region (update these to match your actual groupings)
+# Maps each Area to its Region
 region_lookup <- data.frame(
   Area = c(
-    "Año Nuevo", "Point Lobos", "Piedras Blancas", "Point Buchon",
-    "Bodega Head", "Stewart's Point", "Point Arena", "South Cape Mendocino",
-    "Ten Mile", "Farallon Islands", "Point Reyes", "Montara",
-    "Campus Point", "Carrington Point", "Anacapa Island", "Laguna Beach"
+    # South Coast (6 areas)
+    "Swamis", "South La Jolla", "Point Conception", "Laguna Beach",
+    "Carrington Point", "Anacapa Island",
+    # Central Coast (4 areas)
+    "Ano Nuevo", "Piedras Blancas", "Point Buchon", "Point Lobos",
+    # North Coast (6 areas)
+    "Bodega Head", "Southeast Farallon Islands", "South Cape Mendocino",
+    "Stewarts Point", "Ten Mile", "Trinidad"
   ),
   Region = c(
+    rep("South Coast", 6),
     rep("Central Coast", 4),
-    rep("North Central Coast", 4),
-    rep("North Coast", 4),
-    rep("South Coast", 4)
+    rep("North Coast", 6)
   ),
   stringsAsFactors = FALSE
 )
