@@ -28,13 +28,13 @@ region_lookup <- data.frame(
 
 # ---- Load Data ----
 # Load CPUE/BPUE data
-if (file.exists("data/cpue_bpue_data.csv")) {
-  cpue_bpue_raw <- read.csv("data/cpue_bpue_data.csv", stringsAsFactors = FALSE)
+if (file.exists("data/2007-2024_CCFRP_derived_effort_table.csv")) {
+  cpue_bpue_raw <- read.csv("data/2007-2024_CCFRP_derived_effort_table.csv", stringsAsFactors = FALSE)
 } else {
   # Sample data for development/testing
   set.seed(42)
   areas <- region_lookup$Area
-  years <- 2007:2025
+  years <- 2007:2024
   mpa_status <- c("MPA", "REF")
   
   cpue_bpue_raw <- expand.grid(
@@ -64,14 +64,14 @@ all_regions <- sort(unique(region_lookup$Region))
 all_species <- sort(unique(cpue_bpue_raw$Common_Name))
 
 # ---- Load Length Data ----
-if (file.exists("data/length_data.csv")) {
-  length_raw <- read.csv("data/length_data.csv", stringsAsFactors = FALSE)
+if (file.exists("data/2007-2024_CCFRP_derived_length_table.csv")) {
+  length_raw <- read.csv("data/2007-2024_CCFRP_derived_length_table.csv", stringsAsFactors = FALSE)
 } else {
   # Sample length data for development/testing
   set.seed(123)
   length_raw <- expand.grid(
     Area = region_lookup$Area,
-    Year = 2007:2025,
+    Year = 2007:2024,
     MPA_Status = c("MPA", "REF"),
     stringsAsFactors = FALSE
   ) %>%
