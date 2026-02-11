@@ -229,12 +229,16 @@ ui <- fluidPage(
           br(),
           h3("Length Frequency Distribution"),
           p("Distribution of individual fish lengths (cm) by MPA status for the selected species and filters. ",
-            "Kernel density curves are shown for MPA vs Reference sites, with overlapping fills for comparison."),
+            "Histograms are shown side-by-side for MPA vs Reference sites."),
           fluidRow(
-            column(6,
+            column(4,
               selectInput("length_year_select", "Select Year (or All Years):",
                           choices = c("All Years", sort(unique(length_raw$Year))),
                           selected = "All Years")
+            ),
+            column(4,
+              sliderInput("bin_width", "Bin Width (cm):",
+                          min = 1, max = 10, value = 2, step = 1)
             )
           ),
           plotlyOutput("length_freq_plot", height = "550px"),
@@ -380,7 +384,8 @@ server <- function(input, output, session) {
       geom_point(size = 2.5) +
       geom_errorbar(aes(ymin = mean_CPUE - se_CPUE, ymax = mean_CPUE + se_CPUE),
                     width = 0.2) +
-      scale_color_manual(values = c("MPA" = "#2196F3", "REF" = "#FF5722"),
+      geom_smooth(method = "lm", se = FALSE, linetype = "dashed", linewidth = 0.8) +
+      scale_color_manual(values = c("MPA" = "#FF5722", "REF" = "#2196F3"),
                          labels = c("MPA" = "MPA", "REF" = "Reference")) +
       labs(title = title_text,
            x = "Year",
@@ -407,7 +412,8 @@ server <- function(input, output, session) {
       geom_point(size = 2.5) +
       geom_errorbar(aes(ymin = mean_BPUE - se_BPUE, ymax = mean_BPUE + se_BPUE),
                     width = 0.2) +
-      scale_color_manual(values = c("MPA" = "#2196F3", "REF" = "#FF5722"),
+      geom_smooth(method = "lm", se = FALSE, linetype = "dashed", linewidth = 0.8) +
+      scale_color_manual(values = c("MPA" = "#FF5722", "REF" = "#2196F3"),
                          labels = c("MPA" = "MPA", "REF" = "Reference")) +
       labs(title = title_text,
            x = "Year",
@@ -436,7 +442,7 @@ server <- function(input, output, session) {
       geom_point(size = 2.5) +
       geom_errorbar(aes(ymin = mean_length - se_length, ymax = mean_length + se_length),
                     width = 0.2) +
-      scale_color_manual(values = c("MPA" = "#2196F3", "REF" = "#FF5722"),
+      scale_color_manual(values = c("MPA" = "#FF5722", "REF" = "#2196F3"),
                          labels = c("MPA" = "MPA", "REF" = "Reference")) +
       labs(title = title_text,
            x = "Year",
@@ -469,15 +475,14 @@ server <- function(input, output, session) {
     data <- data %>%
       mutate(Site_Status = ifelse(MPA_Status == "MPA", "MPA", "Reference"))
 
-    p <- ggplot(data, aes(x = Length_cm, fill = Site_Status, color = Site_Status)) +
-      geom_density(alpha = 0.35, linewidth = 1.2) +
-      scale_fill_manual(values = c("MPA" = "#2196F3", "Reference" = "#FF5722")) +
-      scale_color_manual(values = c("MPA" = "#2196F3", "Reference" = "#FF5722")) +
+    p <- ggplot(data, aes(x = Length_cm, fill = Site_Status)) +
+      geom_histogram(binwidth = input$bin_width, position = "dodge",
+                     alpha = 0.7, color = "white") +
+      scale_fill_manual(values = c("MPA" = "#FF5722", "Reference" = "#2196F3")) +
       labs(title = title_text,
            x = "Length (cm)",
-           y = "Density",
-           fill = "Site Status",
-           color = "Site Status") +
+           y = "Number of Fish",
+           fill = "Site Status") +
       theme_minimal(base_size = 14) +
       theme(legend.position = "bottom")
 
