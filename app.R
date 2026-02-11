@@ -73,6 +73,11 @@ all_species <- sort(unique(cpue_bpue_raw$Common_Name))
 # Each row = one individual fish measured
 if (file.exists("data/2007-2024_CCFRP_derived_length_table.csv")) {
   length_raw <- read.csv("data/2007-2024_CCFRP_derived_length_table.csv", stringsAsFactors = FALSE)
+  
+  # Rename 'Site' to 'MPA_Status' to match effort data naming convention
+  if ("Site" %in% names(length_raw) && !"MPA_Status" %in% names(length_raw)) {
+    length_raw <- length_raw %>% rename(MPA_Status = Site)
+  }
 } else {
   # Sample length data for development/testing
   # Simulates real structure: each row = one fish, with ID_Cell_per_Trip grouping
