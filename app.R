@@ -202,15 +202,46 @@ ui <- fluidPage(
       tableOutput("bpue_table")
     ),
 
-    # Length Tab
+    # Length Tab — now has TWO sub-tabs: Mean Length and Length Frequency
     tabPanel("Fish Length",
       br(),
-      h3("Fish Length Distribution Over Time"),
-      p("Mean fish length (cm) per grid cell visit, averaged by year and MPA status. Select a species to view."),
-      plotlyOutput("length_plot", height = "550px"),
-      hr(),
-      h4("Length Summary Table"),
-      tableOutput("length_table")
+      tabsetPanel(
+        id = "length_subtabs",
+
+        # Sub-tab 1: Mean Length Over Time (two-step aggregation)
+        tabPanel("Mean Length Over Time",
+          br(),
+          h3("Mean Fish Length Over Time"),
+          p("Mean fish length (cm) per grid cell visit, averaged by year and MPA status. Select a species to view."),
+          plotlyOutput("length_plot", height = "550px"),
+          hr(),
+          h4("Mean Length Summary Table"),
+          tableOutput("length_table")
+        ),
+
+        # Sub-tab 2: Length Frequency Distribution
+        tabPanel("Length Frequency Distribution",
+          br(),
+          h3("Length Frequency Distribution"),
+          p("Distribution of individual fish lengths (cm) by MPA status for the selected species and filters. ",
+            "Histograms are shown side-by-side for MPA vs Reference sites."),
+          fluidRow(
+            column(4,
+              selectInput("length_year_select", "Select Year (or All Years):",
+                          choices = c("All Years", sort(unique(length_raw$Year))),
+                          selected = "All Years")
+            ),
+            column(4,
+              sliderInput("bin_width", "Bin Width (cm):",
+                          min = 1, max = 10, value = 2, step = 1)
+            )
+          ),
+          plotlyOutput("length_freq_plot", height = "550px"),
+          hr(),
+          h4("Length Frequency Summary"),
+          tableOutput("length_freq_table")
+        )
+      )
     )
   ),
 
@@ -229,29 +260,21 @@ server <- function(input, output, session) {
   # ===========================================================
   # CPUE / BPUE AGGREGATION
   # ===========================================================
-  # Step 1: Filter raw data by year, species, and area/region
-  # Step 2: Sum CPUE and BPUE across species within each ID_Cell_per_Trip
-  #         (this gives total CPUE/BPUE per grid cell visit)
-  # Step 3: Average those cell-trip totals by Year + MPA_Status
-  # ===========================================================
 
   # ---- Reactive: filtered CPUE/BPUE data ----
   filtered_cpue_bpue <- reactive({
     data <- cpue_bpue_raw %>%
       filter(Year >= input$year_range[1], Year <= input$year_range[2])
 
-    # Filter by species (if a specific species is selected, we only sum that species' CPUE per cell-trip)
     if (input$species_select != "All Species") {
       data <- data %>% filter(Common_Name == input$species_select)
     }
 
-    # Filter by view level
     if (input$view_level == "area") {
       data <- data %>% filter(Area == input$area_select)
     } else if (input$view_level == "region") {
       data <- data %>% filter(Region == input$region_select)
     }
-    # "all" = no additional filtering
 
     return(data)
   })
@@ -261,7 +284,6 @@ server <- function(input, output, session) {
     data <- filtered_cpue_bpue()
 
     # Step 1: Sum CPUE/BPUE across species within each cell-trip
-    # Each ID_Cell_per_Trip has one row per species; summing collapses to one row per cell-trip
     cell_trip_totals <- data %>%
       group_by(ID_Cell_per_Trip, Year, MPA_Status, Area, Region) %>%
       summarise(
@@ -286,19 +308,13 @@ server <- function(input, output, session) {
   # ===========================================================
   # LENGTH AGGREGATION
   # ===========================================================
-  # Step 1: Filter by year, species (required), and area/region
-  # Step 2: Calculate mean length per ID_Cell_per_Trip
-  #         (each row is one fish; averaging within a cell-trip gives
-  #          the mean length for that sampling event)
-  # Step 3: Average those cell-trip means by Year + MPA_Status
-  # ===========================================================
 
   # ---- Reactive: filtered length data (uses separate species selector) ----
   filtered_length <- reactive({
     data <- length_raw %>%
       filter(Year >= input$year_range[1], Year <= input$year_range[2])
 
-    # Length tab ALWAYS filters by a single species (no "All Species" option)
+    # Length tab ALWAYS filters by a single species
     data <- data %>% filter(Common_Name == input$species_select_length)
 
     if (input$view_level == "area") {
@@ -314,7 +330,7 @@ server <- function(input, output, session) {
   summarized_length <- reactive({
     data <- filtered_length()
 
-    # Step 1: Mean length per cell-trip (average all fish measured in that cell visit)
+    # Step 1: Mean length per cell-trip
     cell_trip_means <- data %>%
       group_by(ID_Cell_per_Trip, Year, MPA_Status, Area, Region) %>%
       summarise(
@@ -333,6 +349,19 @@ server <- function(input, output, session) {
         total_fish     = sum(n_fish_cell_trip),
         .groups = "drop"
       )
+  })
+
+  # ---- Reactive: filtered length data for frequency distribution ----
+  # Same species/area/region filters as mean length, but with optional single-year filter
+  filtered_length_freq <- reactive({
+    data <- filtered_length()
+
+    # Additional year filter for the frequency plot
+    if (input$length_year_select != "All Years") {
+      data <- data %>% filter(Year == as.integer(input$length_year_select))
+    }
+
+    return(data)
   })
 
   # ---- Plot: CPUE ----
@@ -389,7 +418,7 @@ server <- function(input, output, session) {
     ggplotly(p) %>% layout(legend = list(orientation = "h", x = 0.3, y = -0.15))
   })
 
-  # ---- Plot: Length ----
+  # ---- Plot: Mean Length Over Time ----
   output$length_plot <- renderPlotly({
     data <- summarized_length()
 
@@ -412,6 +441,41 @@ server <- function(input, output, session) {
            x = "Year",
            y = "Mean Length (cm)",
            color = "Site Status") +
+      theme_minimal(base_size = 14) +
+      theme(legend.position = "bottom")
+
+    ggplotly(p) %>% layout(legend = list(orientation = "h", x = 0.3, y = -0.15))
+  })
+
+  # ---- Plot: Length Frequency Distribution ----
+  output$length_freq_plot <- renderPlotly({
+    data <- filtered_length_freq()
+
+    species_name <- input$species_select_length
+    year_label <- if (input$length_year_select == "All Years") {
+      paste0(input$year_range[1], "-", input$year_range[2])
+    } else {
+      input$length_year_select
+    }
+
+    title_text <- switch(input$view_level,
+      "area" = paste(species_name, "- Length Frequency at", input$area_select, "(", year_label, ")"),
+      "region" = paste(species_name, "- Length Frequency in", input$region_select, "(", year_label, ")"),
+      "all" = paste(species_name, "- Length Frequency Across All Areas", "(", year_label, ")")
+    )
+
+    # Relabel MPA_Status for display
+    data <- data %>%
+      mutate(Site_Status = ifelse(MPA_Status == "MPA", "MPA", "Reference"))
+
+    p <- ggplot(data, aes(x = Length_cm, fill = Site_Status)) +
+      geom_histogram(binwidth = input$bin_width, position = "dodge",
+                     alpha = 0.7, color = "white") +
+      scale_fill_manual(values = c("MPA" = "#2196F3", "Reference" = "#FF5722")) +
+      labs(title = title_text,
+           x = "Length (cm)",
+           y = "Number of Fish",
+           fill = "Site Status") +
       theme_minimal(base_size = 14) +
       theme(legend.position = "bottom")
 
@@ -450,6 +514,23 @@ server <- function(input, output, session) {
         "N Cell-Trips" = n_cell_trips,
         "Total Fish" = total_fish
       )
+  })
+
+  # ---- Length Frequency Summary Table ----
+  output$length_freq_table <- renderTable({
+    data <- filtered_length_freq()
+
+    data %>%
+      group_by(MPA_Status) %>%
+      summarise(
+        `N Fish` = n(),
+        `Mean Length (cm)` = round(mean(Length_cm, na.rm = TRUE), 1),
+        `SD Length (cm)` = round(sd(Length_cm, na.rm = TRUE), 1),
+        `Min Length (cm)` = round(min(Length_cm, na.rm = TRUE), 1),
+        `Max Length (cm)` = round(max(Length_cm, na.rm = TRUE), 1),
+        .groups = "drop"
+      ) %>%
+      rename("MPA Status" = MPA_Status)
   })
 }
 
