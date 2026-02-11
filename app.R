@@ -390,9 +390,13 @@ server <- function(input, output, session) {
       labs(title = title_text,
            x = "Year",
            y = "Mean CPUE (catch per angler hour)",
-           color = "Site Status") +
+           color = "Site") +
       theme_minimal(base_size = 14) +
-      theme(legend.position = "bottom")
+      theme(
+        legend.position = "bottom",
+        axis.line = element_line(color = "black", linewidth = 0.5),
+        axis.ticks = element_line(color = "black", linewidth = 0.3)
+      )
 
     ggplotly(p) %>% layout(legend = list(orientation = "h", x = 0.3, y = -0.15))
   })
@@ -418,9 +422,13 @@ server <- function(input, output, session) {
       labs(title = title_text,
            x = "Year",
            y = "Mean BPUE (kg per angler hour)",
-           color = "Site Status") +
+           color = "Site") +
       theme_minimal(base_size = 14) +
-      theme(legend.position = "bottom")
+      theme(
+        legend.position = "bottom",
+        axis.line = element_line(color = "black", linewidth = 0.5),
+        axis.ticks = element_line(color = "black", linewidth = 0.3)
+      )
 
     ggplotly(p) %>% layout(legend = list(orientation = "h", x = 0.3, y = -0.15))
   })
@@ -447,9 +455,13 @@ server <- function(input, output, session) {
       labs(title = title_text,
            x = "Year",
            y = "Mean Length (cm)",
-           color = "Site Status") +
+           color = "Site") +
       theme_minimal(base_size = 14) +
-      theme(legend.position = "bottom")
+      theme(
+        legend.position = "bottom",
+        axis.line = element_line(color = "black", linewidth = 0.5),
+        axis.ticks = element_line(color = "black", linewidth = 0.3)
+      )
 
     ggplotly(p) %>% layout(legend = list(orientation = "h", x = 0.3, y = -0.15))
   })
@@ -482,9 +494,13 @@ server <- function(input, output, session) {
       labs(title = title_text,
            x = "Length (cm)",
            y = "Number of Fish",
-           fill = "Site Status") +
+           fill = "Site") +
       theme_minimal(base_size = 14) +
-      theme(legend.position = "bottom")
+      theme(
+        legend.position = "bottom",
+        axis.line = element_line(color = "black", linewidth = 0.5),
+        axis.ticks = element_line(color = "black", linewidth = 0.3)
+      )
 
     ggplotly(p) %>% layout(legend = list(orientation = "h", x = 0.3, y = -0.15))
   })
