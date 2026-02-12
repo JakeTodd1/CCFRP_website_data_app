@@ -57,8 +57,13 @@ ui <- fluidPage(
   theme = shinytheme("flatly"),
 
   tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
+    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
+    # Add custom CSS for logo positioning
+    tags$style(HTML(".logo-top-right {position: absolute; top: 10px; right: 20px; z-index: 1000;}"))
   ),
+
+  # Logo in top right corner
+  tags$img(src = "Statewide-CCFRP-Logo.png", class = "logo-top-right", height = "100px"),
 
   titlePanel(
     div(
@@ -69,7 +74,7 @@ ui <- fluidPage(
 
   hr(),
 
-  # ---- Filters ---- Create drop downs to filter data that is visualized 
+  # Filters - Create drop downs to filter data that is visualized 
   fluidRow(
     # create dropdown for viewing level (area, region, all)
     column(3,
