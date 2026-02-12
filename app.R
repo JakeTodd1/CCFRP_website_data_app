@@ -7,7 +7,7 @@ library(tidyr)
 
 set.seed(123)
 
-# ---- Region Lookup Table ----
+# -- Create Region Lookup Table -- 
 # Maps each Area to its Region
 region_lookup <- data.frame(
   Area = c(
@@ -28,7 +28,7 @@ region_lookup <- data.frame(
   stringsAsFactors = FALSE
 )
 
-# ---- Load Data ----
+# -- Load Data --
 # Load CPUE/BPUE data
   cpue_bpue_raw <- read.csv("data/2007-2024_CCFRP_derived_effort_table.csv", stringsAsFactors = FALSE)
 
@@ -43,6 +43,7 @@ all_species <- sort(unique(cpue_bpue_raw$Common_Name))
 
 # Load Length Data
   length_raw <- read.csv("data/2007-2024_CCFRP_derived_length_table.csv", stringsAsFactors = FALSE)
+  # Rename Site column to MPA_Status to match CPUE/BPUE dataframe 
   length_raw <- length_raw %>% 
                 rename(MPA_Status = Site)
 
@@ -50,7 +51,7 @@ length_raw <- length_raw %>%
   left_join(region_lookup, by = "Area")
 
 # ============================================================
-# UI
+#  Shiny UI
 # ============================================================
 ui <- fluidPage(
   theme = shinytheme("flatly"),
@@ -68,8 +69,9 @@ ui <- fluidPage(
 
   hr(),
 
-  # ---- Filters ----
+  # ---- Filters ---- Create drop downs to filter data that is visualized 
   fluidRow(
+    # create dropdown for viewing level (area, region, all)
     column(3,
       selectInput("view_level", "View Level:",
                   choices = c("By Area" = "area",
@@ -77,6 +79,7 @@ ui <- fluidPage(
                               "All Areas Combined" = "all"),
                   selected = "area")
     ),
+    # create dropdown for specific sampling area or region
     column(3,
       conditionalPanel(
         condition = "input.view_level == 'area'",
@@ -91,15 +94,16 @@ ui <- fluidPage(
                     selected = all_regions[1])
       )
     ),
+    # create dropdown for species selection
     column(3,
-      # Species filter for CPUE/BPUE tabs (includes "All Species")
+      # Species filter for CPUE/BPUE tabs includes "All Species"
       conditionalPanel(
         condition = "input.main_tabs !== 'Fish Length'",
         selectInput("species_select", "Select Species:",
                     choices = c("All Species", all_species),
                     selected = "All Species")
       ),
-      # Species filter for Length tab (NO "All Species" option)
+      # Species filter for Length tab, has to be single species
       conditionalPanel(
         condition = "input.main_tabs === 'Fish Length'",
         selectInput("species_select_length", "Select Species:",
@@ -107,6 +111,7 @@ ui <- fluidPage(
                     selected = all_species[1])
       )
     ),
+    # create slider for year selection
     column(3,
       sliderInput("year_range", "Year Range:",
                   min = min(cpue_bpue_raw$Year),
@@ -126,7 +131,7 @@ ui <- fluidPage(
     tabPanel("CPUE",
       br(),
       h3("Catch Per Unit Effort (CPUE) Over Time"),
-      p("Mean total CPUE per grid cell visit (ID_Cell_per_Trip), averaged by year and MPA status."),
+      p("Total CPUE averaged by year and MPA status."),
       plotlyOutput("cpue_plot", height = "550px"),
       hr(),
       h4("CPUE Summary Table"),
@@ -137,7 +142,7 @@ ui <- fluidPage(
     tabPanel("BPUE",
       br(),
       h3("Biomass Per Unit Effort (BPUE) Over Time"),
-      p("Mean total BPUE per grid cell visit (ID_Cell_per_Trip), averaged by year and MPA status."),
+      p("Total BPUE averaged by year and MPA status."),
       plotlyOutput("bpue_plot", height = "550px"),
       hr(),
       h4("BPUE Summary Table"),
@@ -153,8 +158,8 @@ ui <- fluidPage(
         # Sub1: Mean Length Over Time (two-step aggregation)
         tabPanel("Mean Length Over Time",
           br(),
-          h3("Mean Fish Length Over Time"),
-          p("Mean fish length (cm) per grid cell visit, averaged by year and MPA status. Select a species to view."),
+          h3("Mean Length Over Time"),
+          p("Mean fish length (cm) by year and MPA status"),
           plotlyOutput("length_plot", height = "550px"),
           hr(),
           h4("Mean Length Summary Table"),
@@ -165,11 +170,11 @@ ui <- fluidPage(
         tabPanel("Length Frequency Distribution",
           br(),
           h3("Length Frequency Distribution"),
-          p("Distribution of individual fish lengths (cm) by MPA status for the selected species and filters. ",
+          p("Distribution of individual fish lengths (cm).",
             "Histograms are shown side-by-side for MPA vs Reference sites."),
           fluidRow(
             column(4,
-              selectInput("length_year_select", "Select Year (or All Years):",
+              selectInput("length_year_select", "Select Year:",
                           choices = c("All Years", sort(unique(length_raw$Year))),
                           selected = "All Years")
             ),
@@ -420,7 +425,7 @@ server <- function(input, output, session) {
       "all" = paste(species_name, "- Length Frequency Across All Areas", "(", year_label, ")")
     )
 
-    # Relabel MPA_Status for display
+    # Relabel MPA_Status to site for plots
     data <- data %>%
       mutate(Site_Status = ifelse(MPA_Status == "MPA", "MPA", "Reference"))
 
@@ -442,41 +447,39 @@ server <- function(input, output, session) {
     ggplotly(p) %>% layout(legend = list(orientation = "h", x = 0.3, y = -0.15))
   })
 
-  # ---- Tables ----
+  # -- Create summary tables for plot pages --
   output$cpue_table <- renderTable({
     summarized_cpue_bpue() %>%
-      select(Year, MPA_Status, mean_CPUE, se_CPUE, n_cell_trips) %>%
+      select(Year, MPA_Status, mean_CPUE, se_CPUE) %>%
       rename(
-        "MPA Status" = MPA_Status,
+        "Site" = MPA_Status,
         "Mean CPUE" = mean_CPUE,
-        "SE" = se_CPUE,
-        "N Cell-Trips" = n_cell_trips
+        "SE" = se_CPUE
       )
   })
 
   output$bpue_table <- renderTable({
     summarized_cpue_bpue() %>%
-      select(Year, MPA_Status, mean_BPUE, se_BPUE, n_cell_trips) %>%
+      select(Year, MPA_Status, mean_BPUE, se_BPUE) %>%
       rename(
-        "MPA Status" = MPA_Status,
+        "Site" = MPA_Status,
         "Mean BPUE" = mean_BPUE,
-        "SE" = se_BPUE,
-        "N Cell-Trips" = n_cell_trips
+        "SE" = se_BPUE
       )
   })
 
   output$length_table <- renderTable({
     summarized_length() %>%
+    select(Year, MPA_Status, mean_length, se_length, total_fish) %>%
       rename(
-        "MPA Status" = MPA_Status,
+        "Site" = MPA_Status,
         "Mean Length (cm)" = mean_length,
         "SE" = se_length,
-        "N Cell-Trips" = n_cell_trips,
         "Total Fish" = total_fish
       )
   })
 
-  # ---- Length Frequency Summary Table ----
+  # -- Length Frequency Summary Table --
   output$length_freq_table <- renderTable({
     data <- filtered_length_freq()
 
@@ -494,5 +497,5 @@ server <- function(input, output, session) {
   })
 }
 
-# ---- Run App ----
+# Run App
 shinyApp(ui = ui, server = server)
