@@ -5,6 +5,8 @@ library(plotly)
 library(shinythemes)
 library(tidyr)
 
+set.seed(123)
+
 # ---- Region Lookup Table ----
 # Maps each Area to its Region
 region_lookup <- data.frame(
@@ -27,87 +29,22 @@ region_lookup <- data.frame(
 )
 
 # ---- Load Data ----
-# Load CPUE/BPUE data (each row = one species per grid cell per trip)
-if (file.exists("data/2007-2024_CCFRP_derived_effort_table.csv")) {
+# Load CPUE/BPUE data
   cpue_bpue_raw <- read.csv("data/2007-2024_CCFRP_derived_effort_table.csv", stringsAsFactors = FALSE)
-} else {
-  # Sample data for development/testing
-  # Simulates the real data structure: each row = one species on one cell-trip
-  set.seed(42)
-  areas <- region_lookup$Area
-  years <- 2007:2024
-  mpa_status <- c("MPA", "REF")
-  grid_cells <- paste0("GC", 1:5)
-  trips <- paste0("T", 1:3)
-  species <- c("Blue Rockfish", "Gopher Rockfish", "Black Rockfish",
-               "Vermilion Rockfish", "Copper Rockfish")
 
-  cpue_bpue_raw <- expand.grid(
-    Area = areas,
-    Year = years,
-    MPA_Status = mpa_status,
-    Grid_Cell_ID = grid_cells,
-    Trip = trips,
-    Common_Name = species,
-    stringsAsFactors = FALSE
-  ) %>%
-    mutate(
-      ID_Cell_per_Trip = paste(Area, Year, MPA_Status, Grid_Cell_ID, Trip, sep = "_"),
-      CPUE_catch_per_angler_hour = round(runif(n(), 0.0, 2.0), 3),
-      BPUE_biomass.kg._per_angler_hour = round(runif(n(), 0.0, 1.5), 3)
-    ) %>%
-    # Randomly remove some rows so not every species appears on every cell-trip
-    slice_sample(prop = 0.6)
-}
-
-# Merge region info onto data
+# Add region to dataframe
 cpue_bpue_raw <- cpue_bpue_raw %>%
   left_join(region_lookup, by = "Area")
 
-# Get unique values for filters
+# Get values for filters
 all_areas <- sort(unique(cpue_bpue_raw$Area))
 all_regions <- sort(unique(region_lookup$Region))
 all_species <- sort(unique(cpue_bpue_raw$Common_Name))
 
-# ---- Load Length Data ----
-# Each row = one individual fish measured
-if (file.exists("data/2007-2024_CCFRP_derived_length_table.csv")) {
+# Load Length Data
   length_raw <- read.csv("data/2007-2024_CCFRP_derived_length_table.csv", stringsAsFactors = FALSE)
-  
-  # Rename 'Site' to 'MPA_Status' to match effort data naming convention
-  if ("Site" %in% names(length_raw) && !"MPA_Status" %in% names(length_raw)) {
-    length_raw <- length_raw %>% rename(MPA_Status = Site)
-  }
-} else {
-  # Sample length data for development/testing
-  # Simulates real structure: each row = one fish, with ID_Cell_per_Trip grouping
-  set.seed(123)
-  areas <- region_lookup$Area
-  years <- 2007:2024
-  mpa_status <- c("MPA", "REF")
-  grid_cells <- paste0("GC", 1:5)
-  trips <- paste0("T", 1:3)
-  species <- c("Blue Rockfish", "Gopher Rockfish", "Black Rockfish",
-               "Vermilion Rockfish", "Copper Rockfish")
-
-  length_raw <- expand.grid(
-    Area = areas,
-    Year = years,
-    MPA_Status = mpa_status,
-    Grid_Cell_ID = grid_cells,
-    Trip = trips,
-    Common_Name = species,
-    stringsAsFactors = FALSE
-  ) %>%
-    mutate(
-      ID_Cell_per_Trip = paste(Area, Year, MPA_Status, Grid_Cell_ID, Trip, sep = "_")
-    ) %>%
-    # Each species-cell-trip combo produces a few fish
-    slice(rep(1:n(), each = sample(1:5, n(), replace = TRUE))) %>%
-    mutate(
-      Length_cm = round(rnorm(n(), mean = 30, sd = 8), 1)
-    )
-}
+  length_raw <- length_raw %>% 
+                rename(MPA_Status = Site)
 
 length_raw <- length_raw %>%
   left_join(region_lookup, by = "Area")
@@ -181,7 +118,7 @@ ui <- fluidPage(
 
   hr(),
 
-  # ---- Tabs for CPUE, BPUE, Length ----
+  # - Tabs for CPUE, BPUE, Length -
   tabsetPanel(
     id = "main_tabs",
 
@@ -207,13 +144,13 @@ ui <- fluidPage(
       tableOutput("bpue_table")
     ),
 
-    # Length Tab — now has TWO sub-tabs: Mean Length and Length Frequency
+    # Length Tab — has TWO sub-tabs: Mean Length and Length Frequency
     tabPanel("Fish Length",
       br(),
       tabsetPanel(
         id = "length_subtabs",
 
-        # Sub-tab 1: Mean Length Over Time (two-step aggregation)
+        # Sub1: Mean Length Over Time (two-step aggregation)
         tabPanel("Mean Length Over Time",
           br(),
           h3("Mean Fish Length Over Time"),
@@ -224,7 +161,7 @@ ui <- fluidPage(
           tableOutput("length_table")
         ),
 
-        # Sub-tab 2: Length Frequency Distribution
+        # Sub2: Length Frequency Distribution
         tabPanel("Length Frequency Distribution",
           br(),
           h3("Length Frequency Distribution"),
@@ -288,7 +225,7 @@ server <- function(input, output, session) {
   summarized_cpue_bpue <- reactive({
     data <- filtered_cpue_bpue()
 
-    # Step 1: Sum CPUE/BPUE across species within each cell-trip
+    # Step 1: Sum CPUE/BPUE across species within each cell by trip
     cell_trip_totals <- data %>%
       group_by(ID_Cell_per_Trip, Year, MPA_Status, Area, Region) %>%
       summarise(
@@ -297,7 +234,7 @@ server <- function(input, output, session) {
         .groups = "drop"
       )
 
-    # Step 2: Average the cell-trip totals by Year + MPA_Status
+    # Step 2: Average the cell per trip totals by Year + MPA_Status
     cell_trip_totals %>%
       group_by(Year, MPA_Status) %>%
       summarise(
@@ -335,7 +272,7 @@ server <- function(input, output, session) {
   summarized_length <- reactive({
     data <- filtered_length()
 
-    # Step 1: Mean length per cell-trip
+    # Step 1: Mean length per cell per trip
     cell_trip_means <- data %>%
       group_by(ID_Cell_per_Trip, Year, MPA_Status, Area, Region) %>%
       summarise(
@@ -344,7 +281,7 @@ server <- function(input, output, session) {
         .groups = "drop"
       )
 
-    # Step 2: Average cell-trip means by Year + MPA_Status
+    # Step 2: Average cell per trip means by Year + MPA_Status
     cell_trip_means %>%
       group_by(Year, MPA_Status) %>%
       summarise(
