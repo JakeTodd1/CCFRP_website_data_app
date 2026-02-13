@@ -128,7 +128,7 @@ ui <- fluidPage(
 
   hr(),
 
-  # - Tabs for CPUE, BPUE, Length -
+  # Tabs for CPUE, BPUE, Length 
   tabsetPanel(
     id = "main_tabs",
 
@@ -154,13 +154,13 @@ ui <- fluidPage(
       tableOutput("bpue_table")
     ),
 
-    # Length Tab — has TWO sub-tabs: Mean Length and Length Frequency
+    # Length Tab — has two sub-tabs: mean length over time and length frequency distribution
     tabPanel("Fish Length",
       br(),
       tabsetPanel(
         id = "length_subtabs",
 
-        # Sub1: Mean Length Over Time (two-step aggregation)
+        # Sub1: mean length (two-step aggregation)
         tabPanel("Mean Length Over Time",
           br(),
           h3("Mean Length Over Time"),
@@ -171,7 +171,7 @@ ui <- fluidPage(
           tableOutput("length_table")
         ),
 
-        # Sub2: Length Frequency Distribution
+        # Sub2: Length Distribution
         tabPanel("Length Frequency Distribution",
           br(),
           h3("Length Frequency Distribution"),
@@ -213,7 +213,7 @@ server <- function(input, output, session) {
   # CPUE / BPUE AGGREGATION
   # ===========================================================
 
-  # ---- Reactive: filtered CPUE/BPUE data ----
+  # -- Reactive: filtered CPUE/BPUE data -- 
   filtered_cpue_bpue <- reactive({
     data <- cpue_bpue_raw %>%
       filter(Year >= input$year_range[1], Year <= input$year_range[2])
@@ -231,7 +231,7 @@ server <- function(input, output, session) {
     return(data)
   })
 
-  # ---- Reactive: summarized CPUE/BPUE data (two-step aggregation) ----
+  # Reactive: summarized CPUE/BPUE data (two-step aggregation)
   summarized_cpue_bpue <- reactive({
     data <- filtered_cpue_bpue()
 
@@ -261,7 +261,7 @@ server <- function(input, output, session) {
   # LENGTH AGGREGATION
   # ===========================================================
 
-  # ---- Reactive: filtered length data (uses separate species selector) ----
+  # Reactive: filtered length data (uses separate species selector)
   filtered_length <- reactive({
     data <- length_raw %>%
       filter(Year >= input$year_range[1], Year <= input$year_range[2])
@@ -278,11 +278,11 @@ server <- function(input, output, session) {
     return(data)
   })
 
-  # ---- Reactive: summarized length data (two-step aggregation) ----
+  # Reactive: summarized length data (two-step aggregation)
   summarized_length <- reactive({
     data <- filtered_length()
 
-    # Step 1: Mean length per cell per trip
+    # Step 1: calculate mean length per cell per trip
     cell_trip_means <- data %>%
       group_by(ID_Cell_per_Trip, Year, MPA_Status, Area, Region) %>%
       summarise(
@@ -303,7 +303,7 @@ server <- function(input, output, session) {
       )
   })
 
-  # ---- Reactive: filtered length data for frequency distribution ----
+  # Reactive: filtered length data for frequency distribution
   # Same species/area/region filters as mean length, but with optional single-year filter
   filtered_length_freq <- reactive({
     data <- filtered_length()
@@ -316,7 +316,7 @@ server <- function(input, output, session) {
     return(data)
   })
 
-  # ---- Plot: CPUE ----
+  # CPUE plot
   output$cpue_plot <- renderPlotly({
     data <- summarized_cpue_bpue()
 
@@ -348,7 +348,7 @@ server <- function(input, output, session) {
     ggplotly(p) %>% layout(legend = list(orientation = "h", x = 0.3, y = -0.15))
   })
 
-  # ---- Plot: BPUE ----
+  # BPUE plot
   output$bpue_plot <- renderPlotly({
     data <- summarized_cpue_bpue()
 
@@ -380,7 +380,7 @@ server <- function(input, output, session) {
     ggplotly(p) %>% layout(legend = list(orientation = "h", x = 0.3, y = -0.15))
   })
 
-  # ---- Plot: Mean Length Over Time ----
+  # Length over time plot
   output$length_plot <- renderPlotly({
     data <- summarized_length()
 
@@ -413,7 +413,7 @@ server <- function(input, output, session) {
     ggplotly(p) %>% layout(legend = list(orientation = "h", x = 0.3, y = -0.15))
   })
 
-  # ---- Plot: Length Frequency Distribution ----
+  # -Length frequency plot
   output$length_freq_plot <- renderPlotly({
     data <- filtered_length_freq()
 
@@ -430,7 +430,7 @@ server <- function(input, output, session) {
       "all" = paste(species_name, "- Length Frequency Across All Areas", "(", year_label, ")")
     )
 
-    # Relabel MPA_Status to site for plots
+    # Relabel MPA_Status to site for plot legends
     data <- data %>%
       mutate(Site_Status = ifelse(MPA_Status == "MPA", "MPA", "Reference"))
 
@@ -452,7 +452,7 @@ server <- function(input, output, session) {
     ggplotly(p) %>% layout(legend = list(orientation = "h", x = 0.3, y = -0.15))
   })
 
-  # -- Create summary tables for plot pages --
+  # Create summary tables for plot pages
   output$cpue_table <- renderTable({
     summarized_cpue_bpue() %>%
       select(Year, MPA_Status, mean_CPUE, se_CPUE) %>%
@@ -484,7 +484,7 @@ server <- function(input, output, session) {
       )
   })
 
-  # -- Length Frequency Summary Table --
+  #  Length Frequency Summary Table 
   output$length_freq_table <- renderTable({
     data <- filtered_length_freq()
 
