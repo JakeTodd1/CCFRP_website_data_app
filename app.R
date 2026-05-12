@@ -30,7 +30,7 @@ region_lookup <- data.frame(
 
 # -- Load Data --
 # Load CPUE/BPUE data
-  cpue_bpue_raw <- read.csv("data/2007-2024_CCFRP_derived_effort_table.csv", stringsAsFactors = FALSE)
+  cpue_bpue_raw <- read.csv("data/2007-2025_CCFRP_derived_effort_table.csv", stringsAsFactors = FALSE)
 
 # Add region to dataframe
 cpue_bpue_raw <- cpue_bpue_raw %>%
@@ -42,7 +42,7 @@ all_regions <- sort(unique(region_lookup$Region))
 all_species <- sort(unique(cpue_bpue_raw$Common_Name))
 
 # Load Length Data
-  length_raw <- read.csv("data/2007-2024_CCFRP_derived_length_table.csv", stringsAsFactors = FALSE)
+  length_raw <- read.csv("data/2007-2025_CCFRP_derived_length_table.csv", stringsAsFactors = FALSE)
   # Rename Site column to MPA_Status to match CPUE/BPUE dataframe 
   length_raw <- length_raw %>% 
                 rename(MPA_Status = Site)
